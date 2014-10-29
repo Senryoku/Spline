@@ -137,7 +137,7 @@ public:
 	 * @param c ControlPoint to add.
 	 * @see add(const ControlPoint&)
 	**/
-	inline void operator+=(const ControlPoint& c) { add(C); }
+	inline void operator+=(const ControlPoint& c) { add(c); }
 	
 	/** 
 	 * @brief Adds c at the end of the spline.

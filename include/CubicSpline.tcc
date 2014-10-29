@@ -4,23 +4,23 @@
 
 /** Constructor by list of positions **/
 template<class T, typename R>
-CubicSpline<T, R>::CubicSpline(const std::initializer_list<T>& L) :
-	CubicSpline(L.begin(), L.end())
+CubicSpline<T, R>::CubicSpline(const std::initializer_list<T>& l) :
+	CubicSpline(l.begin(), l.end())
 {
 }
 
 /** Constructor by list of ControlPoints **/
 template<class T, typename R>
-CubicSpline<T, R>::CubicSpline(const std::initializer_list<ControlPoint>& L) :
-	CubicSpline(L.begin(), L.end())
+CubicSpline<T, R>::CubicSpline(const std::initializer_list<ControlPoint>& l) :
+	CubicSpline(l.begin(), l.end())
 {
 }
 
 /** Constructor by list of positions **/
 template<class T, typename R>
 template<class Iterator>
-CubicSpline<T, R>::CubicSpline(Iterator Begin, Iterator End) : 
-	_points(Begin, End)
+CubicSpline<T, R>::CubicSpline(Iterator begin, Iterator end) : 
+	_points(begin, end)
 {
 	linearTiming();
 	catmullRom();
@@ -28,9 +28,9 @@ CubicSpline<T, R>::CubicSpline(Iterator Begin, Iterator End) :
 }
 
 template<class T, typename R>
-inline void CubicSpline<T, R>::add(const ControlPoint& C)
+inline void CubicSpline<T, R>::add(const ControlPoint& c)
 {
-	_points.push_back(C);
+	_points.push_back(c);
 	_polynomials.resize(getPointCount());
 }
 
