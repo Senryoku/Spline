@@ -1,0 +1,36 @@
+Spline expression :
+
+a, b, c, d = var('a, b, c, d');
+var('U, V, A, B, X, Y');
+solve([a + b * U + c * U * U + d * U * U * U == A,
+      a + b * V + c * V * V + d * V * V * V == B,
+      b + 2 * c * U + 3 * d * U * U == X,
+      b + 2 * c * V + 3 * d * V * V == Y],
+      a, b, c, d);
+	  
+[[
+a == -((V*Y - B)*U^3 + A*V^3 + ((X - Y)*V^2 + 3*B*V)*U^2 - (V^3*X + 3*A*V^2)*U)/(U^3 - 3*U^2*V + 3*U*V^2 - V^3), 
+b == ((2*X + Y)*U^2*V + U^3*Y - V^3*X - ((X + 2*Y)*V^2 + 6*A*V - 6*B*V)*U)/(U^3 - 3*U^2*V + 3*U*V^2 - V^3), 
+c == -((X + 2*Y)*U^2 - (2*X + Y)*V^2 + ((X - Y)*V - 3*A+ 3*B)*U - 3*A*V + 3*B*V)/(U^3 - 3*U^2*V + 3*U*V^2 - V^3), 
+d == ((X +Y)*U - (X + Y)*V - 2*A + 2*B)/(U^3 - 3*U^2*V + 3*U*V^2 - V^3)
+]]
+
+First and Last points :
+Tangent for a Acceleration = 0 ( P''(U) == 0 ):
+
+a, b, c, d = var('a, b, c, d');
+var('U, V, A, B, X, Y, T');
+solve([a + b * U + c * U * U + d * U * U * U == A,
+      a + b * V + c * V * V + d * V * V * V == B,
+      b + 2 * c * U + 3 * d * U * U == X,
+      b + 2 * c * V + 3 * d * V * V == Y,
+      2 * c + 6 * d * U == 0],
+      a, b, c, d, X);
+	  
+[[
+a == -1/2*(2*(V*Y - B)*U^3 + 2*A*V^3 - 3*(V^2*Y - 2*B*V)*U^2 + (V^3*Y - 3*A*V^2 - 3*B*V^2)*U)/(U^3 - 3*U^2*V + 3*U*V^2 - V^3), 
+b == 1/2*(2*U^3*Y + V^3*Y + 3*A*V^2 - 3*B*V^2 - 3*(V^2*Y + 2*A*V - 2*B*V)*U)/(U^3 - 3*U^2*V + 3*U*V^2 - V^3), 
+c == -3/2*(U^2*Y - (V*Y + A - B)*U)/(U^3 - 3*U^2*V + 3*U*V^2 - V^3), 
+d == 1/2*(U*Y - V*Y - A + B)/(U^3 - 3*U^2*V + 3*U*V^2 - V^3), 
+X == -1/2*(U*Y - V*Y - 3*A + 3*B)/(U - V)
+]]
