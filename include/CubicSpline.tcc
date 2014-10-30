@@ -2,21 +2,18 @@
 
 // Implementation of CubicSpline.hpp
 
-/** Constructor by list of positions **/
 template<class T, typename R>
 CubicSpline<T, R>::CubicSpline(const std::initializer_list<T>& l) :
 	CubicSpline(l.begin(), l.end())
 {
 }
 
-/** Constructor by list of ControlPoints **/
 template<class T, typename R>
 CubicSpline<T, R>::CubicSpline(const std::initializer_list<ControlPoint>& l) :
 	CubicSpline(l.begin(), l.end())
 {
 }
 
-/** Constructor by list of positions **/
 template<class T, typename R>
 template<class Iterator>
 CubicSpline<T, R>::CubicSpline(Iterator begin, Iterator end) : 
@@ -132,7 +129,7 @@ void CubicSpline<T, R>::checkPolynomial(size_t i)
 		// is up-to-date before setting this to non-dirty.
 		if(i > 0 && _points[i].isDirty())
 			checkPolynomial(i - 1);
-		_points[i].setDirty(false);
+		setDirty(_points[i], false);
 	}
 }
 
@@ -164,4 +161,10 @@ void CubicSpline<T, R>::updatePolynomial(size_t i)
 	_polynomials[i][1] = ((c2*X + Y)*u2*v + u3*Y - v3*X - ((X + c2*Y)*v2 + c6*A*v - c6*B*v)*u)/(u3 - c3*u2*v + c3*u*v2 - v3);
 	_polynomials[i][2] = -((X + c2*Y)*u2 - (c2*X + Y)*v2 + ((X - Y)*v - c3*A+ c3*B)*u - c3*A*v + c3*B*v)/(u3 - c3*u2*v + c3*u*v2 - v3); 
 	_polynomials[i][3] = ((X +Y)*u - (X + Y)*v - c2*A + c2*B)/(u3 - c3*u2*v + c3*u*v2 - v3);
+}
+
+template<class T, typename R>
+void CubicSpline<T, R>::setDirty(CubicSpline<T, R>::ControlPoint& c, bool b)
+{
+	c._dirty = b;
 }

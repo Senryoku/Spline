@@ -4,16 +4,24 @@
 	
 /** 
  * @brief CubicSpline
+ * @author Senryoku 
+ *
+ * Senryoku <https://github.com/Senryoku>
+ * (Started on October 2014)
  *
  * Describes a CubicSpline defined by ControlPoints.
  * Each ControlPoint consist of at least a position, and
  * optionally a speed (tangent) and a time (these two can be set to
- * default values, giving you a [0, 1] catmull-rom spline).
+ * default values, giving you a [0, 1] Catmull-Rom spline).
+ * The spline will reach each of its ConstrolPoint's positions 
+ * at the given time and speed.
  *
- * @todo Easier point insertion ? Auto sorting if time is specified ?
+ * @todo Easier point insertion. Auto sorting if time is specified ?
+ * @todo Handle more use cases (than just default linear/Catmull-Rom)
+ *       especially while inserting ControlPoints.
  * @todo Comment the whole thing
  *
- * @param T Well defined vector class (addition, multiplication whith a scalar R)
+ * @param T Well defined vector class (addition, multiplication with a scalar R)
  * @param R Scalar type of the vector class (default: float)
 **/
 template<class T, typename R = float>
@@ -26,14 +34,14 @@ public:
 	 * Describes a point in space (T) where an object following the 
 	 * spline should be at a given time (R), at a given speed (T). 
 	 * Speed and Time can be omitted, in this case, the CubicSpline
-	 * class will use default values for there two properties.
+	 * class will use default values for these two properties.
 	**/
 	class ControlPoint
 	{
 	public:
-		ControlPoint() =default; ///< Default Constructor
-		ControlPoint(const ControlPoint&) =default; ///< Copy Constructor
-		ControlPoint(ControlPoint&&) =default; ///< Move Constructor
+		ControlPoint() =default; ///< @brief Default Constructor
+		ControlPoint(const ControlPoint&) =default; ///< @brief Copy Constructor
+		ControlPoint(ControlPoint&&) =default; ///< @brief Move Constructor
 		
 		/**
 		 * @brief Constructor
@@ -51,16 +59,10 @@ public:
 		~ControlPoint() =default;
 		
 		/**
-		 * Should not be used outside of CubicSpline
 		 * @return true if the point as changed since the last update
 		**/
 		inline bool isDirty() const { return _dirty; }
-		/** 
-		 * Should not be used outside of CubicSpline
-		 * @param b New value for the dirty flag
-		**/
-		inline void setDirty(bool b = true) { _dirty = b; }
-	
+		
 		/// @return Position in space of the point
 		inline const T& getPosition() const { return _position; }
 		
@@ -71,13 +73,16 @@ public:
 		inline const R& getTime() const { return _time; }
 		
 		/// @param v New Position
-		inline void setPosition(const T& v) { _position = v; setDirty(); }
+		inline void setPosition(const T& v) { _position = v; _dirty = true; }
 		
 		/// @param v New Speed
-		inline void setSpeed(const T& v) { _speed = v; setDirty(); }
+		inline void setSpeed(const T& v) { _speed = v; _dirty = true; }
 		
 		/// @param v New Time
-		inline void setTime(const R& v) { _time = v; setDirty(); }
+		inline void setTime(const R& v) { _time = v; _dirty = true; }
+		
+		/// @brief Give access to the dirty bit to CubicSpline
+		friend void CubicSpline::setDirty(ControlPoint& c, bool b);
 	private:
 		bool	_dirty = true;	///< Marks as 'changed'
 		T		_position;			///< Position
@@ -188,9 +193,10 @@ public:
 	
 	/**
 	 * @brief Modify the ControlPoint's times.
-	 * If the spline is described by 3 ControlPoints C1, C2, C3 :
-	 * C1 will be reached for t = 0.0 * m / 2.0 = 0.0
-	 * C2 will be reached for t = 1.0 * m / 2.0 = 0.5
+	 *
+	 * If the spline is described by 3 ControlPoints C1, C2, C3 :\n
+	 * C1 will be reached for t = 0.0 * m / 2.0 = 0.0\n
+	 * C2 will be reached for t = 1.0 * m / 2.0 = 0.5\n
 	 * C3 will be reached for t = 2.0 * m / 2.0 = 1.0
 	 * @param m Maximum time (i.e. getEndTime() will return m)
 	**/
@@ -232,6 +238,9 @@ public:
 private:
 	/**
 	 * @brief Polynomial
+	 *
+	 * Representation of a 3rd degree polynomial by 4 coefficients.
+	 * P(t) = P[0] + P[1] * t + P[2] * t^2 + P[3] * t^3
 	**/
 	class Polynomial : public std::array<T, 4>
 	{
@@ -268,6 +277,17 @@ private:
 	 * @brief Compute coefficients for the i-th polynomial.
 	**/
 	void updatePolynomial(size_t i);
+	
+	/**
+	 * @brief Access to the dirty bit of a ControlPoint.
+	 *
+	 * Friend function of the ControlPoint class.
+	 * It's the only function that should have access to the dirty
+	 * bit outside of the ControlPoint class.
+	 * @param c ControlPoint that will be modified
+	 * @param b New value of the dirty bit
+	**/
+	inline void setDirty(ControlPoint& c, bool b = true);
 };
 
 // Implementation Details
