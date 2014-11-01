@@ -15,6 +15,10 @@
  * default values, giving you a [0, 1] Catmull-Rom spline).
  * The spline will reach each of its ConstrolPoint's positions 
  * at the given time and speed.
+ * Some of it is precomputed to speed up at use, any modification
+ * other than adding a point (which causes a automatic update) 
+ * should be followed by a call to update()
+ * @see void update()
  *
  * @todo Easier point insertion. Auto sorting if time is specified ?
  * @todo Handle more use cases (than just default linear/Catmull-Rom)
@@ -28,6 +32,9 @@ template<class T, typename R = float>
 class CubicSpline
 {
 public:	
+	using vector_type = T;
+	using scalar_type = R;
+
 	/**
 	 * @brief ControlPoint
 	 *
@@ -58,11 +65,6 @@ public:
 		
 		~ControlPoint() =default;
 		
-		/**
-		 * @return true if the point as changed since the last update
-		**/
-		inline bool isDirty() const { return _dirty; }
-		
 		/// @return Position in space of the point
 		inline const T& getPosition() const { return _position; }
 		
@@ -73,21 +75,36 @@ public:
 		inline const R& getTime() const { return _time; }
 		
 		/// @param v New Position
-		inline void setPosition(const T& v) { _position = v; _dirty = true; }
+		inline void setPosition(const T& v) { _position = v; }
 		
 		/// @param v New Speed
-		inline void setSpeed(const T& v) { _speed = v; _dirty = true; }
+		inline void setSpeed(const T& v) { _speed = v; }
 		
 		/// @param v New Time
-		inline void setTime(const R& v) { _time = v; _dirty = true; }
-		
-		/// @brief Give access to the dirty bit to CubicSpline
-		friend void CubicSpline::setDirty(ControlPoint& c, bool b);
+		inline void setTime(const R& v) { _time = v; }
 	private:
-		bool	_dirty = true;	///< Marks as 'changed'
 		T		_position;			///< Position
 		T		_speed;				///< Speed (First derivative)
 		R		_time;				///< Time
+	};
+	
+	/**
+	 * @brief Describes automatic timing strategies
+	 *
+	**/
+	enum Timing
+	{
+		Linear, ///< Linear between 0.0 and 1.0
+		LinearBetweenPoints ///< Linear between 0.0 and getPointCount()
+	};
+	
+	/**
+	 * @brief Describes automatic tangents strategies
+	 *
+	**/
+	enum Tangent
+	{
+		CatmullRom ///< Catmull-Rom-like tangents, with nil acceleration at start and end.
 	};
 	
 	// Constructors
@@ -103,7 +120,6 @@ public:
 	 * @brief Constructor by list of positions 
 	 *
 	 * This will construct a Catmull-Rom spline.
-	 * (calling linearTiming() then catmullRom())
 	 * @param l List of positions
 	 * @see template<class Iterator> CubicSpline(Iterator begin, Iterator end)
 	**/
@@ -117,7 +133,6 @@ public:
 	/** @brief Constructor by list of positions 
 	 *
 	 * This will construct a Catmull-Rom spline.
-	 * (calling linearTiming() then catmullRom())
 	 * @param begin Iterator pointing to the first position
 	 * @param end Iterator pointing right after the last position
 	 * @see CubicSpline(const std::initializer_list<T>& l)
@@ -134,32 +149,38 @@ public:
 	/// @brief Move operator
 	CubicSpline& operator=(CubicSpline&&) =default;
 	
-	/// @return The number of ControlPoint describing the spline
-	inline size_t getPointCount() const { return _points.size(); }
-
-	/** 
+	/**
 	 * @brief Adds c at the end of the spline.
+	 *
+	 * ConstrolPoint c must be completely defined (whit tangent and time),
+	 * or completed by call(s) to computeTimings/computeTangents.
 	 * @param c ControlPoint to add.
 	 * @see add(const ControlPoint&)
 	**/
 	inline void operator+=(const ControlPoint& c) { add(c); }
-	
-	/** 
+
+	/**
 	 * @brief Adds c at the end of the spline.
+	 *
+	 * ConstrolPoint c must be completely defined (whit tangent and time),
+	 * or completed by call(s) to computeTimings/computeTangents.
 	 * @param c ControlPoint to add.
 	 * @see operator+=(const ControlPoint&)
 	**/
 	inline void add(const ControlPoint& c);
+
+	/// @return The number of ControlPoint describing the spline
+	inline size_t getPointCount() const { return _points.size(); }
 	
 	/**
-	 * @return First correct value for get(R t)
+	 * @return First correct value for get*(R t)
 	 * @see get(R T)
 	 * @see getEndTime()
 	**/
 	inline R getStartTime() const { return _points[0].getTime(); }
 	
 	/**
-	 * @return Highest correct value for get(R t)
+	 * @return Highest correct value for get*(R t)
 	 * @see get(R T)
 	 * @see getStartTime()
 	**/
@@ -170,55 +191,61 @@ public:
 	 * @return Value of the spline at t
 	 * @see get(R t)
 	**/
-	inline T operator()(R t);
+	inline T operator()(R t) const;
 	
 	/**
 	 * @param t Time
 	 * @return Value of the spline at t
 	 * @see operator()(R t)
 	**/
-	inline T get(R t);
+	inline T get(R t) const;
 	
 	/**
 	 * @param t Time
 	 * @return Value of the speed (first derivative) of the spline at t
 	**/
-	inline T getSpeed(R t);
+	inline T getSpeed(R t) const;
 	
 	/**
 	 * @param t Time
 	 * @return Value of the acceleration (second derivative) of the spline at t
 	**/
-	inline T getAcceleration(R t);
+	inline T getAcceleration(R t) const;
 	
 	/**
 	 * @brief Modify the ControlPoint's times.
 	 *
-	 * If the spline is described by 3 ControlPoints C1, C2, C3 :\n
+	 * If the spline is described by 3 ControlPoints C1, C2, C3 
+	 * with type = Linear and m = 1.0 (default values):\n
 	 * C1 will be reached for t = 0.0 * m / 2.0 = 0.0\n
 	 * C2 will be reached for t = 1.0 * m / 2.0 = 0.5\n
 	 * C3 will be reached for t = 2.0 * m / 2.0 = 1.0
+	 * @param type Timing type to use
 	 * @param m Maximum time (i.e. getEndTime() will return m)
 	**/
-	inline void linearTiming(R m = static_cast<R>(1.0));
+	inline void computeTimings(Timing type = Timing::Linear, R m = static_cast<R>(1.0));
 	
 	/**
-	 * @brief Catmull-Rom Spline
+	 * @brief Computes tangents at ControlPoints.
 	 *
 	 * Compute ControlPoint's speeds (~tangents/derivatives)
-	 * to match a Catmull-Rom spline.
+	 * following the specified strategy.
+	 * @param t Strategy to use (default: Catmull-Rom)
 	**/
-	inline void catmullRom();
+	inline void computeTangents(Tangent t = Tangent::CatmullRom);
 	
-	/**
-	 * @brief Used to iterate over ControlPoints
+	/** @brief Used to iterate over ControlPoints
 	 *
+	 * Be careful using this: any modification to a ControlPoint
+	 * needs to be followed by a call to update() !
 	 * @see end()
 	**/
 	inline typename std::vector<ControlPoint>::iterator begin() { return _points.begin(); }
 	/**
 	 * @brief Used to iterate over ControlPoints
 	 *
+	 * Be careful using this: any modification to a ControlPoint
+	 * needs to be followed by a call to update() !
 	 * @see begin()
 	**/
 	inline typename std::vector<ControlPoint>::iterator end() { return _points.end(); }
@@ -235,6 +262,13 @@ public:
 	**/
 	inline typename std::vector<ControlPoint>::const_iterator cend() const { return _points.cend(); }
 	
+	/**
+	 * @brief Updates internal representation of the spline
+	 *
+	 * Should be called after each modification of a ControlPoint
+	**/
+	inline void update() { updatePolynomials(); }
+	
 private:
 	/**
 	 * @brief Polynomial
@@ -246,16 +280,16 @@ private:
 	{
 	public:
 		/// @return Evaluation of the polynomial at t
-		inline T operator()(R t) const { return (*this)[0] + t * ((*this)[1] + t * ((*this)[2] + t * (*this)[3])); }
+		inline T operator()(R t) const { return (*this)[0] + t * (*this)[1] + t * t * (*this)[2] + t * t * t * (*this)[3]; }
 		/// @return Evaluation of the first derivative of the polynomial at t
-		inline T d(R t) const { return (*this)[1] + t * (2.0 * (*this)[2] + t * 3.0 * (*this)[3]); }
+		inline T d(R t) const { return (*this)[1] + t * static_cast<R>(2.0) * (*this)[2] + t * t * static_cast<R>(3.0) * (*this)[3]; }
 		/// @return Evaluation of the second derivative of the polynomial at t
-		inline T d2(R t) const { return 2.0 * (*this)[2] + 6.0 * (*this)[3] * t; }
+		inline T d2(R t) const { return static_cast<R>(2.0) * (*this)[2] + static_cast<R>(6.0) * t * (*this)[3]; }
 		
 		/// @return First derivative of the polynomial (So, also a polynomial)
-		inline Polynomial d() const { return {(*this)[1], 2.0 * (*this)[2], 3.0 * (*this)[3], R()}; }
+		inline Polynomial d() const { return {(*this)[1], static_cast<R>(2.0) * (*this)[2], static_cast<R>(3.0) * (*this)[3], R()}; }
 		/// @return Second derivative of the polynomial (So, also a polynomial)
-		inline Polynomial d2() const { return {2.0 * (*this)[2], 6.0 * (*this)[3], R(), R()}; }
+		inline Polynomial d2() const { return {static_cast<R>(2.0) * (*this)[2], static_cast<R>(6.0) * (*this)[3], R(), R()}; }
 	};
 	
 	std::vector<ControlPoint>	_points;			///< ControlPoints
@@ -265,13 +299,7 @@ private:
 	 * @param t Time
 	 * @return Index of the ControlPoint right before t
 	**/
-	size_t getPoint(R t);
-	
-	/**
-	 * @brief Makes sure the i-th polynomial is up-to-date.
-	 * @see updatePolynomial(size_t i)
-	**/
-	void checkPolynomial(size_t i);
+	size_t getPoint(R t) const;
 	
 	/**
 	 * @brief Compute coefficients for the i-th polynomial.
@@ -279,15 +307,13 @@ private:
 	void updatePolynomial(size_t i);
 	
 	/**
-	 * @brief Access to the dirty bit of a ControlPoint.
-	 *
-	 * Friend function of the ControlPoint class.
-	 * It's the only function that should have access to the dirty
-	 * bit outside of the ControlPoint class.
-	 * @param c ControlPoint that will be modified
-	 * @param b New value of the dirty bit
+	 * @brief Compute coefficients for the all polynomials.
 	**/
-	inline void setDirty(ControlPoint& c, bool b = true);
+	inline void updatePolynomials()
+	{
+		for(size_t i = 0; i < getPointCount(); ++i)
+			updatePolynomial(i);
+	}
 };
 
 // Implementation Details
