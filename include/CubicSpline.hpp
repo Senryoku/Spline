@@ -317,4 +317,4 @@ private:
 };
 
 // Implementation Details
-#include <CubicSpline.tcc>
+#include "CubicSpline.tcc"

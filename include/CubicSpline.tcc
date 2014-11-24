@@ -55,7 +55,7 @@ inline T CubicSpline<T, R>::getSpeed(R t) const
 {
 	assert(t >= getStartTime() && t < getEndTime());
 	
-	return _polynomials[getPoint(t)].d(getPoint(t));
+	return _polynomials[getPoint(t)].d(t);
 }
 
 template<class T, typename R>
@@ -63,7 +63,7 @@ inline T CubicSpline<T, R>::getAcceleration(R t) const
 {
 	assert(t >= getStartTime() && t < getEndTime());
 	
-	return _polynomials[getPoint(t)].d2(getPoint(t));
+	return _polynomials[getPoint(t)].d2(t);
 }
 
 template<class T, typename R>
